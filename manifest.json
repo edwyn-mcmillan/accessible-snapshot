@@ -22,6 +22,26 @@
     "48": "icons/icon-48.png",
     "128": "icons/icon-128.png"
   },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "Take accessible snapshot"
+    },
+    "_execute_browser_action": {
+      "suggested_key": {
+        "default": "Alt+S"
+      },
+      "description": "Take accessible snapshot"
+    },
+    "take-snapshot": {
+      "suggested_key": {
+        "default": "F2"
+      },
+      "description": "Take accessible snapshot (F2)"
+    }
+  },
   "browser_specific_settings": {
     "gecko": {
       "id": "accessible-snapshot@example.com",

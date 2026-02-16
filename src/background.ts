@@ -7,7 +7,7 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   }
 });
 
-chrome.action.onClicked.addListener(async (tab) => {
+async function takeSnapshot(tab: chrome.tabs.Tab): Promise<void> {
   if (!tab.id || !tab.url) return;
 
   const restricted =
@@ -25,5 +25,14 @@ chrome.action.onClicked.addListener(async (tab) => {
     });
   } catch (err) {
     console.error("Accessible Snapshot: Failed to inject content script", err);
+  }
+}
+
+chrome.action.onClicked.addListener(takeSnapshot);
+
+chrome.commands.onCommand.addListener(async (command) => {
+  if (command === "take-snapshot") {
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    if (tab) await takeSnapshot(tab);
   }
 });
