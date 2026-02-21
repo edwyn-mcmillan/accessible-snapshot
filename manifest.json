@@ -3,7 +3,8 @@
   "name": "Accessible Snapshot",
   "version": "0.1.0",
   "description": "Generate a keyboard-first structural snapshot of any web page.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": ["activeTab", "scripting", "storage", "tabs"],
+  "host_permissions": ["<all_urls>"],
   "action": {
     "default_title": "Take Accessible Snapshot",
     "default_icon": {

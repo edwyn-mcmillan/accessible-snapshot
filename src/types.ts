@@ -5,10 +5,11 @@ export interface PageSnapshot {
   landmarks: Landmark[];
   headings: Heading[];
   navLinks: NavLink[];
-  mainContent: ContentBlock[];
+  contentGroups: ContentGroup[];
   forms: FormSnapshot[];
   buttons: ButtonSnapshot[];
   links: LinkSnapshot[];
+  search?: { action: string; paramName: string };
 }
 
 export interface Landmark {
@@ -34,7 +35,9 @@ export type ContentBlockType =
   | "list"
   | "image"
   | "blockquote"
-  | "preformatted";
+  | "preformatted"
+  | "table"
+  | "definition-list";
 
 export interface ContentBlock {
   type: ContentBlockType;
@@ -43,6 +46,17 @@ export interface ContentBlock {
   items?: string[];
   alt?: string;
   src?: string;
+  rows?: string[][];
+  headers?: string[];
+  definitions?: Array<{ term: string; description: string }>;
+  sourceContext?: "main" | "article" | "body";
+}
+
+export interface ContentGroup {
+  heading?: { text: string; level: number };
+  blocks: ContentBlock[];
+  score: number;
+  collapsed: boolean;
 }
 
 export interface FormSnapshot {
@@ -74,4 +88,5 @@ export interface ButtonSnapshot {
 export interface LinkSnapshot {
   text: string;
   href: string;
+  isFooter?: boolean;
 }

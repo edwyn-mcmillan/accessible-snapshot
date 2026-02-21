@@ -1,8 +1,9 @@
 import type {
-  PageSnapshot,
   ContentBlock,
-  FormSnapshot,
+  ContentGroup,
   FormField,
+  FormSnapshot,
+  PageSnapshot,
 } from "./types.js";
 
 function esc(text: string): string {
@@ -23,7 +24,7 @@ function renderContentBlock(block: ContentBlock): string {
       return `<h${block.level}>${esc(block.text)}</h${block.level}>`;
 
     case "paragraph":
-      return `<p>${esc(block.text)}</p>`;
+      return `<p tabindex="0">${esc(block.text)}</p>`;
 
     case "list": {
       const items = (block.items ?? [])
@@ -33,7 +34,11 @@ function renderContentBlock(block: ContentBlock): string {
     }
 
     case "image":
-      return `<figure><img src="${escAttr(block.src ?? "")}" alt="${escAttr(block.alt ?? block.text)}"><figcaption>${esc(block.alt ?? block.text)}</figcaption></figure>`;
+      if (!block.src) return "";
+      return `<figure>
+  <img src="${escAttr(block.src)}" alt="${escAttr(block.alt ?? "")}" loading="lazy" decoding="async" tabindex="0">
+  ${block.alt ? `<figcaption>${esc(block.alt)}</figcaption>` : ""}
+</figure>`;
 
     case "blockquote":
       return `<blockquote><p>${esc(block.text)}</p></blockquote>`;
@@ -41,9 +46,53 @@ function renderContentBlock(block: ContentBlock): string {
     case "preformatted":
       return `<pre>${esc(block.text)}</pre>`;
 
+    case "table": {
+      const headerRow = block.headers?.length
+        ? `<thead><tr>${block.headers.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead>\n`
+        : "";
+      const bodyRows = (block.rows ?? [])
+        .map(
+          (row) =>
+            `  <tr>${row.map((cell) => `<td>${esc(cell)}</td>`).join("")}</tr>`,
+        )
+        .join("\n");
+      return `<table tabindex="0">\n${headerRow}<tbody>\n${bodyRows}\n</tbody>\n</table>`;
+    }
+
+    case "definition-list": {
+      const items = (block.definitions ?? [])
+        .map(
+          (d) => `  <dt>${esc(d.term)}</dt>\n  <dd>${esc(d.description)}</dd>`,
+        )
+        .join("\n");
+      return `<dl>\n${items}\n</dl>`;
+    }
+
     default:
-      return `<p>${esc(block.text)}</p>`;
+      return `<p tabindex="0">${esc(block.text)}</p>`;
   }
+}
+
+function renderContentGroup(group: ContentGroup): string {
+  const blocksHtml = group.blocks.map(renderContentBlock).join("\n");
+  const headingHtml = group.heading
+    ? `<h${group.heading.level}>${esc(group.heading.text)}</h${group.heading.level}>`
+    : "";
+
+  if (group.collapsed) {
+    if (!group.heading) return "";
+    return `<details class="content-group collapsed">
+  <summary>${esc(group.heading.text)}</summary>
+  <div class="group-content">
+${blocksHtml}
+  </div>
+</details>`;
+  }
+
+  return `<section class="content-group">
+${headingHtml}
+${blocksHtml}
+</section>`;
 }
 
 function renderFormField(field: FormField): string {
@@ -84,7 +133,7 @@ ${legend}${fields}
 </form>`;
 }
 
-export function renderSnapshot(snapshot: PageSnapshot): string {
+export function renderSnapshot(snapshot: PageSnapshot): { html: string; title: string; bodyHtml: string } {
   const parts: string[] = [];
 
   if (snapshot.navLinks.length > 0) {
@@ -94,19 +143,27 @@ export function renderSnapshot(snapshot: PageSnapshot): string {
         return `    <li><a href="${escAttr(link.href)}"${current}>${esc(link.text)}</a></li>`;
       })
       .join("\n");
-    parts.push(`<nav role="navigation" aria-label="Page navigation">
-  <h2>Navigation</h2>
+    parts.push(`<details>
+  <summary><h2>Navigation (${snapshot.navLinks.length})</h2></summary>
+  <nav role="navigation" aria-label="Page navigation">
   <ul>
 ${items}
   </ul>
-</nav>`);
+  </nav>
+</details>`);
   }
 
-  if (snapshot.mainContent.length > 0) {
-    const content = snapshot.mainContent.map(renderContentBlock).join("\n");
+  if (snapshot.contentGroups.length > 0) {
+    const visibleGroups = snapshot.contentGroups.filter(
+      (g) => !g.collapsed || g.heading,
+    );
+    const blockCount = visibleGroups.reduce((n, g) => n + g.blocks.length, 0);
+    const content = snapshot.contentGroups.map(renderContentGroup).join("\n");
     parts.push(`<main id="main" role="main">
-  <h2>Content</h2>
+<details open>
+  <summary><h2>Page Content (${blockCount} items)</h2></summary>
 ${content}
+</details>
 </main>`);
   } else {
     parts.push(
@@ -116,75 +173,79 @@ ${content}
 
   if (snapshot.forms.length > 0) {
     const formHtml = snapshot.forms.map(renderForm).join("\n");
-    parts.push(`<section aria-label="Forms">
-  <h2>Forms</h2>
+    parts.push(`<details>
+  <summary><h2>Forms (${snapshot.forms.length})</h2></summary>
+  <section aria-label="Forms">
 ${formHtml}
-</section>`);
+  </section>
+</details>`);
   }
 
-  if (snapshot.buttons.length > 0) {
-    const btns = snapshot.buttons
-      .map(
-        (btn) =>
-          `  <button type="${escAttr(btn.type)}">${esc(btn.text)}</button>`,
-      )
-      .join("\n");
-    parts.push(`<section aria-label="Actions">
-  <h2>Actions</h2>
-${btns}
-</section>`);
-  }
+  const mainLinks = snapshot.links.filter((l) => !l.isFooter);
+  const footerLinks = snapshot.links.filter((l) => l.isFooter);
 
-  if (snapshot.links.length > 0) {
-    const items = snapshot.links
+  if (mainLinks.length > 0) {
+    const items = mainLinks
       .map(
         (link) =>
           `    <li><a href="${escAttr(link.href)}">${esc(link.text)}</a></li>`,
       )
       .join("\n");
-    parts.push(`<section aria-label="All links">
-  <h2>Links</h2>
+    parts.push(`<details>
+  <summary><h2>Links (${mainLinks.length})</h2></summary>
   <ul>
 ${items}
   </ul>
-</section>`);
+</details>`);
   }
 
-  if (snapshot.landmarks.length > 0) {
-    const items = snapshot.landmarks
-      .map((lm) => {
-        const label = lm.label ? ` — ${esc(lm.label)}` : "";
-        return `    <li>${esc(lm.role)}${label}</li>`;
-      })
+  if (footerLinks.length > 0) {
+    const items = footerLinks
+      .map(
+        (link) =>
+          `    <li><a href="${escAttr(link.href)}">${esc(link.text)}</a></li>`,
+      )
       .join("\n");
-    parts.push(`<section aria-label="Landmark summary">
-  <h2>Page Landmarks</h2>
+    parts.push(`<details>
+  <summary><h2>Footer Links (${footerLinks.length})</h2></summary>
   <ul>
 ${items}
   </ul>
-</section>`);
+</details>`);
   }
 
-  return `<!DOCTYPE html>
-<html lang="${escAttr(snapshot.lang)}">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Accessible Snapshot: ${esc(snapshot.title)}</title>
-<link rel="stylesheet" href="snapshot.css">
-</head>
-<body>
-<a href="#main" class="skip-link">Skip to main content</a>
+  const pageTitle = `Accessible Snapshot: ${esc(snapshot.title)}`;
 
-<header role="banner">
+  const searchHtml = snapshot.search
+    ? `<form action="${escAttr(snapshot.search.action)}" method="GET" role="search" aria-label="Site search" class="snapshot-search">
+  <label for="snapshot-search-input">Search this site</label>
+  <input type="search" id="snapshot-search-input" name="${escAttr(snapshot.search.paramName)}" placeholder="Search...">
+  <button type="submit">Search</button>
+</form>`
+    : "";
+
+  const bodyHtml = `<header role="banner">
   <h1>${esc(snapshot.title)}</h1>
 </header>
-
+${searchHtml ? searchHtml + "\n" : ""}
 ${parts.join("\n\n")}
 
 <footer role="contentinfo">
   <p class="source-link">Accessible snapshot of <a href="${escAttr(snapshot.url)}">${esc(snapshot.url)}</a></p>
-</footer>
+</footer>`;
+
+  const html = `<!DOCTYPE html>
+<html lang="${escAttr(snapshot.lang)}">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${pageTitle}</title>
+<link rel="stylesheet" href="snapshot.css">
+</head>
+<body>
+${bodyHtml}
 </body>
 </html>`;
+
+  return { html, title: pageTitle, bodyHtml };
 }

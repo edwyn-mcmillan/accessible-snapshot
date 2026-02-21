@@ -10,9 +10,21 @@ const shared = {
   outdir: "dist",
 };
 
-const contentBuild = { ...shared, entryPoints: ["src/content.ts"], format: "iife" };
-const viewerBuild = { ...shared, entryPoints: ["src/viewer.ts"], format: "iife" };
-const backgroundBuild = { ...shared, entryPoints: ["src/background.ts"], format: "esm" };
+const contentBuild = {
+  ...shared,
+  entryPoints: ["src/content.ts"],
+  format: "iife",
+};
+const viewerBuild = {
+  ...shared,
+  entryPoints: ["src/viewer.ts"],
+  format: "iife",
+};
+const backgroundBuild = {
+  ...shared,
+  entryPoints: ["src/background.ts"],
+  format: "esm",
+};
 
 if (watch) {
   const contexts = await Promise.all([
@@ -20,7 +32,11 @@ if (watch) {
     esbuild.context(viewerBuild),
     esbuild.context(backgroundBuild),
   ]);
-  await Promise.all(contexts.map((ctx) => ctx.watch()));
+
+  for (const ctx of contexts) {
+    ctx.watch();
+  }
+
   console.log("Watching for changes...");
 } else {
   await Promise.all([
