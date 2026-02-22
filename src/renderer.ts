@@ -133,7 +133,11 @@ ${legend}${fields}
 </form>`;
 }
 
-export function renderSnapshot(snapshot: PageSnapshot): { html: string; title: string; bodyHtml: string } {
+export function renderSnapshot(snapshot: PageSnapshot): {
+  html: string;
+  title: string;
+  bodyHtml: string;
+} {
   const parts: string[] = [];
 
   if (snapshot.navLinks.length > 0) {
@@ -144,7 +148,7 @@ export function renderSnapshot(snapshot: PageSnapshot): { html: string; title: s
       })
       .join("\n");
     parts.push(`<details>
-  <summary><h2>Navigation (${snapshot.navLinks.length})</h2></summary>
+  <summary><h2>Main Menu (${snapshot.navLinks.length})</h2></summary>
   <nav role="navigation" aria-label="Page navigation">
   <ul>
 ${items}
@@ -174,7 +178,7 @@ ${content}
   if (snapshot.forms.length > 0) {
     const formHtml = snapshot.forms.map(renderForm).join("\n");
     parts.push(`<details>
-  <summary><h2>Forms (${snapshot.forms.length})</h2></summary>
+  <summary><h2>Input Info (${snapshot.forms.length})</h2></summary>
   <section aria-label="Forms">
 ${formHtml}
   </section>
@@ -207,7 +211,7 @@ ${items}
       )
       .join("\n");
     parts.push(`<details>
-  <summary><h2>Footer Links (${footerLinks.length})</h2></summary>
+  <summary><h2>Links in the Footer (${footerLinks.length})</h2></summary>
   <ul>
 ${items}
   </ul>

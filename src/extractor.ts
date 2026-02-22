@@ -313,7 +313,13 @@ function resolveImageSrc(img: HTMLImageElement): string | undefined {
 }
 
 /** Live region roles that contain transient notifications, not page content. */
-const LIVE_REGION_ROLES = new Set(["alert", "status", "log", "marquee", "timer"]);
+const LIVE_REGION_ROLES = new Set([
+  "alert",
+  "status",
+  "log",
+  "marquee",
+  "timer",
+]);
 
 /**
  * Walk the DOM tree and extract text with proper spacing.
@@ -372,7 +378,10 @@ export function extractText(el: Element): string {
 /**
  * Recursively query all matching elements, descending into open shadow roots.
  */
-export function deepQueryAll(root: Element | Document, selector: string): Element[] {
+export function deepQueryAll(
+  root: Element | Document,
+  selector: string,
+): Element[] {
   const results: Element[] = [];
 
   function collect(node: Element | Document) {
@@ -445,8 +454,7 @@ function extractHeadings(doc: Document): Heading[] {
 }
 
 /** Labels that identify a nav element as primary/main site navigation. */
-const PRIMARY_NAV_LABELS =
-  /\b(primary|main|site|global|top)\b/i;
+const PRIMARY_NAV_LABELS = /\b(primary|main|site|global|top)\b/i;
 
 /** Labels that identify a nav element as secondary/auxiliary. */
 const SECONDARY_NAV_LABELS =
@@ -454,7 +462,13 @@ const SECONDARY_NAV_LABELS =
 
 function extractNavLinks(doc: Document): NavLink[] {
   const seen = new Set<string>();
-  const siteOrigin = (() => { try { return new URL(doc.URL).origin; } catch { return ""; } })();
+  const siteOrigin = (() => {
+    try {
+      return new URL(doc.URL).origin;
+    } catch {
+      return "";
+    }
+  })();
 
   function collectFromAnchors(anchors: Element[]): NavLink[] {
     const result: NavLink[] = [];
@@ -478,7 +492,9 @@ function extractNavLinks(doc: Document): NavLink[] {
       if (siteOrigin && href.startsWith("http")) {
         try {
           if (new URL(href).origin !== siteOrigin) continue;
-        } catch { /* keep link if URL parsing fails */ }
+        } catch {
+          /* keep link if URL parsing fails */
+        }
       }
 
       result.push({
@@ -502,7 +518,9 @@ function extractNavLinks(doc: Document): NavLink[] {
   const navEls = deepQueryAll(doc, 'nav, [role="navigation"]');
 
   // Tier 1: Navs explicitly labelled as primary/main
-  const primaryNavs = navEls.filter((n) => PRIMARY_NAV_LABELS.test(getNavLabel(n)));
+  const primaryNavs = navEls.filter((n) =>
+    PRIMARY_NAV_LABELS.test(getNavLabel(n)),
+  );
 
   // Tier 2: Navs inside header/banner that are NOT secondary-labelled
   const headerNavs = navEls.filter(
@@ -541,7 +559,8 @@ function extractNavLinks(doc: Document): NavLink[] {
 
   // Fallback: menu roles, common nav classes, and header links
   if (links.length === 0) {
-    const fallbackAnchors = deepQueryAll(doc,
+    const fallbackAnchors = deepQueryAll(
+      doc,
       [
         '[role="menu"] a[href]',
         '[role="menubar"] a[href]',
@@ -638,7 +657,10 @@ function extractContentBlocks(
           const term = extractText(dtEl);
           // Collect all following <dd> elements as the description
           const descParts: string[] = [];
-          while (i + 1 < children.length && children[i + 1].tagName.toLowerCase() === "dd") {
+          while (
+            i + 1 < children.length &&
+            children[i + 1].tagName.toLowerCase() === "dd"
+          ) {
             i++;
             const desc = extractText(children[i]);
             if (desc) descParts.push(desc);
@@ -731,7 +753,8 @@ function extractContentBlocks(
 
     // 1C: Figure/figcaption handler (before img)
     if (tag === "figure") {
-      const img = child.querySelector("img") ?? child.querySelector("picture img");
+      const img =
+        child.querySelector("img") ?? child.querySelector("picture img");
       if (img) {
         const imgEl = img as HTMLImageElement;
         const figcaption = child.querySelector("figcaption");
@@ -750,7 +773,14 @@ function extractContentBlocks(
         }
       } else {
         // Figure without image — extract content normally
-        blocks.push(...extractContentBlocks(child, knownHeadings, childContext, depth + 1));
+        blocks.push(
+          ...extractContentBlocks(
+            child,
+            knownHeadings,
+            childContext,
+            depth + 1,
+          ),
+        );
       }
       continue;
     }
@@ -812,7 +842,14 @@ function extractContentBlocks(
         const iframe = child as HTMLIFrameElement;
         const iframeDoc = iframe.contentDocument;
         if (iframeDoc?.body) {
-          blocks.push(...extractContentBlocks(iframeDoc.body, knownHeadings, childContext, depth + 1));
+          blocks.push(
+            ...extractContentBlocks(
+              iframeDoc.body,
+              knownHeadings,
+              childContext,
+              depth + 1,
+            ),
+          );
         }
       } catch {
         // Cross-origin iframe — skip silently
@@ -837,7 +874,14 @@ function extractContentBlocks(
       // Recurse into remaining children, skipping the already-handled summary
       for (const detailChild of Array.from(child.children)) {
         if (detailChild.tagName.toLowerCase() === "summary") continue;
-        blocks.push(...extractContentBlocks(detailChild, knownHeadings, childContext, depth + 1));
+        blocks.push(
+          ...extractContentBlocks(
+            detailChild,
+            knownHeadings,
+            childContext,
+            depth + 1,
+          ),
+        );
       }
       continue;
     }
@@ -848,12 +892,21 @@ function extractContentBlocks(
 
     // Descend into shadow root if present
     if (child.shadowRoot) {
-      blocks.push(...extractContentBlocks(child.shadowRoot as unknown as Element, knownHeadings, childContext, depth + 1));
+      blocks.push(
+        ...extractContentBlocks(
+          child.shadowRoot as unknown as Element,
+          knownHeadings,
+          childContext,
+          depth + 1,
+        ),
+      );
       continue;
     }
 
     if (child.children.length > 0) {
-      blocks.push(...extractContentBlocks(child, knownHeadings, childContext, depth + 1));
+      blocks.push(
+        ...extractContentBlocks(child, knownHeadings, childContext, depth + 1),
+      );
     } else {
       const text = extractText(child);
       if (text && !isNoiseText(text) && !isPromotionalParagraph(text))
@@ -937,40 +990,40 @@ function extractButtons(doc: Document): ButtonSnapshot[] {
     doc,
     'button, input[type="submit"], input[type="button"], input[type="reset"], [role="button"]',
   ).forEach((el) => {
-      if (seenElements.has(el) || !isVisible(el)) return;
-      seenElements.add(el);
+    if (seenElements.has(el) || !isVisible(el)) return;
+    seenElements.add(el);
 
-      if (el.closest("form")) return;
+    if (el.closest("form")) return;
 
-      let text: string;
-      if (el instanceof HTMLInputElement) {
-        text = el.value || el.type;
-      } else {
-        text = getAccessibleName(el);
-      }
-      if (!text) return;
+    let text: string;
+    if (el instanceof HTMLInputElement) {
+      text = el.value || el.type;
+    } else {
+      text = getAccessibleName(el);
+    }
+    if (!text) return;
 
-      // Filter noise text and chrome strings
-      if (isNoiseText(text)) return;
-      if (NOISE_CHROME_STRINGS.has(text.toLowerCase())) return;
+    // Filter noise text and chrome strings
+    if (isNoiseText(text)) return;
+    if (NOISE_CHROME_STRINGS.has(text.toLowerCase())) return;
 
-      // Filter carousel/slide controls
-      if (SLIDE_CONTROL_PATTERN.test(text)) return;
+    // Filter carousel/slide controls
+    if (SLIDE_CONTROL_PATTERN.test(text)) return;
 
-      // Deduplicate by text (keep first occurrence)
-      const textLower = text.toLowerCase();
-      if (seenText.has(textLower)) return;
-      seenText.add(textLower);
+    // Deduplicate by text (keep first occurrence)
+    const textLower = text.toLowerCase();
+    if (seenText.has(textLower)) return;
+    seenText.add(textLower);
 
-      let type: "submit" | "button" | "reset" = "button";
-      if (el instanceof HTMLButtonElement) {
-        type = (el.type as "submit" | "button" | "reset") || "submit";
-      } else if (el instanceof HTMLInputElement) {
-        type = el.type as "submit" | "button" | "reset";
-      }
+    let type: "submit" | "button" | "reset" = "button";
+    if (el instanceof HTMLButtonElement) {
+      type = (el.type as "submit" | "button" | "reset") || "submit";
+    } else if (el instanceof HTMLInputElement) {
+      type = el.type as "submit" | "button" | "reset";
+    }
 
-      buttons.push({ text, type });
-    });
+    buttons.push({ text, type });
+  });
 
   return buttons;
 }
@@ -1108,7 +1161,8 @@ function extractSearch(
   doc: Document,
 ): { action: string; paramName: string } | undefined {
   // Look for search input — try multiple selectors
-  const searchInput = deepQueryAll(doc,
+  const searchInput = deepQueryAll(
+    doc,
     [
       'input[type="search"]',
       'input[name="q"]',
